@@ -8,6 +8,7 @@ namespace customerApp
 {
     public partial class MENU : Form
     {
+
         #region プライベート変数
 
         #region オペレータCD
