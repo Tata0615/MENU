@@ -51,6 +51,7 @@
             B_Key04 = new Button();
             B_Key03 = new Button();
             B_Key01 = new Button();
+            label2 = new Label();
             GB_処理区分.SuspendLayout();
             GB_登録内容.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)N_単価).BeginInit();
@@ -203,6 +204,7 @@
             // 
             // GB_登録内容
             // 
+            GB_登録内容.Controls.Add(label2);
             GB_登録内容.Controls.Add(L_単価);
             GB_登録内容.Controls.Add(N_単価);
             GB_登録内容.Controls.Add(L_消費税率);
@@ -262,6 +264,7 @@
             // 
             C_消費税率.BackColor = Color.White;
             C_消費税率.DropDownStyle = ComboBoxStyle.DropDownList;
+            C_消費税率.Enabled = false;
             C_消費税率.FlatStyle = FlatStyle.Flat;
             C_消費税率.Font = new Font("Yu Gothic UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 128);
             C_消費税率.FormattingEnabled = true;
@@ -384,6 +387,15 @@
             B_Key01.UseVisualStyleBackColor = false;
             B_Key01.Click += B_Key01_Click;
             // 
+            // label2
+            // 
+            label2.AutoSize = true;
+            label2.Location = new Point(240, 101);
+            label2.Name = "label2";
+            label2.Size = new Size(239, 15);
+            label2.TabIndex = 10;
+            label2.Text = "*本システムにおいて、消費税率は10%固定とする";
+            // 
             // M030
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -434,5 +446,6 @@
         private ComboBox C_消費税率;
         private NumericUpDown N_単価;
         private Button B_Key04;
+        private Label label2;
     }
 }

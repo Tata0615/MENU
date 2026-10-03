@@ -887,7 +887,6 @@ namespace customerApp
 
                 G_商品名.ReadOnly = true;
                 G_単位名.ReadOnly = true;
-                C_消費税率.Enabled = false;
                 N_単価.Enabled = false;
                 G_備考.ReadOnly = true;
             }
@@ -903,7 +902,6 @@ namespace customerApp
                 G_商品CD.ReadOnly = false;
                 G_商品名.ReadOnly = false;
                 G_単位名.ReadOnly = false;
-                C_消費税率.Enabled = true;
                 N_単価.Enabled = true;
                 G_備考.ReadOnly = false;
 
