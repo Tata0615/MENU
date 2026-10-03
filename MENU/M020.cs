@@ -25,6 +25,20 @@ namespace customerApp
         private bool m_SelectAll = false;
         #endregion
 
+        #region 画面終了FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_CloseFLG = false;
+        #endregion
+
+        #region フォームロード判定FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_FormLoadFLG = true;
+        #endregion
+
         #endregion
 
         #region プライベート定数
@@ -54,6 +68,8 @@ namespace customerApp
         private void MHE020_Load(object sender, EventArgs e)
         {
 
+            m_FormLoadFLG = true;
+
             //初期値の設定
             F_InitializeInput(0);
             B_Key04.Enabled = false;
@@ -64,6 +80,8 @@ namespace customerApp
 #else
                 m_OperatorCD = "9999";
 #endif
+
+            m_FormLoadFLG = false;
         }
         #endregion
 
@@ -91,15 +109,15 @@ namespace customerApp
 
             if (C_処理区分.SelectedIndex != m_SyoriKbnOld)
             {
-                if (C_処理区分.SelectedIndex == 1)  // 1:変更
-                {
-                    CB_選択不可FLG.Visible = true;
-                }
-                else
-                {
-                    CB_選択不可FLG.Checked = false;
-                    CB_選択不可FLG.Visible = false;
-                }
+                //if (C_処理区分.SelectedIndex == 1)  // 1:変更
+                //{
+                //    CB_選択不可FLG.Visible = true;
+                //}
+                //else
+                //{
+                //    CB_選択不可FLG.Checked = false;
+                //    CB_選択不可FLG.Visible = false;
+                //}
 
                 F_InitializeInput(1);
                 F_AllLock(1);
@@ -133,6 +151,9 @@ namespace customerApp
         /// </summary>
         private void G_担当者CD_Validating(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            //排他データの削除
+            F_DeleteHaita(m_TanCDOld);
+
             if (G_担当者CD.Text != m_TanCDOld && G_担当者CD.Text != "")
             {
                 string w_TokCD = G_担当者CD.Text;
@@ -349,14 +370,39 @@ namespace customerApp
             {
                 conn.Open();
 
+                //排他チェック用SQL
+                string HaitaChecksql = @"
+                 SELECT *
+                 FROM Ｆ排他 FHTA WITH(NOLOCK)
+                 WHERE FHTA.キー項目_1 = @TantousyaCD";
+
+                //担当者データ用SQL
                 string sql = @"
                  SELECT *
                  FROM Ｍ担当者
                  WHERE 担当者CD = @TantousyaCD";
 
-                //デバッグ用
+                //担当者データ確認用SQL
                 string w_DebugSQL =
                 $"SELECT COUNT(*) FROM Ｍ担当者 WHERE 担当者CD = '{G_担当者CD.Text}'";
+
+                using (SqlCommand cmd = new SqlCommand(HaitaChecksql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@TantousyaCD", G_担当者CD.Text);
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            MessageBox.Show(
+                                "他のオペレータが編集中です",
+                                "警告",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            w_Ok = false;
+                        }
+                    }
+                }
 
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
@@ -413,13 +459,69 @@ namespace customerApp
                             }
                         }
                     }
+                    if (w_Ok)
+                    {
+                        //排他ロック
+                        string Haitasql = @"
+                            INSERT INTO Ｆ排他
+                            (
+                                オペレータCD,
+                                PROID,
+                                入力種類,
+                                入力NO,
+                                テーブル名,
+                                キー項目_1,
+                                キー項目_2,
+                                キー項目_3,
+                                キー項目_4,
+                                プログラム名,
+                                排他日時,
+                                排他種別
+                            )
+                            VALUES
+                            (
+                                @w_OperatorCD,
+                                @w_TorokuPROID,
+                                @w_NyuSyurui,
+                                @w_NyuNO,
+                                @w_Tablemei,
+                                @w_Key1,
+                                @w_Key2,
+                                @w_Key3,
+                                @w_Key4,
+                                @w_Promei,
+                                @w_HaitaDay,
+                                @w_HaitaSyubetu
+                            )";
+
+                        using (SqlCommand Haitacmd = new SqlCommand(Haitasql, conn))
+                        {
+                            Haitacmd.Parameters.AddWithValue("@w_OperatorCD", m_OperatorCD);
+                            Haitacmd.Parameters.AddWithValue("@w_TorokuPROID", m_TorokuPROID);
+                            Haitacmd.Parameters.AddWithValue("@w_NyuSyurui", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_NyuNO", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Tablemei", "Ｍ担当者");
+                            Haitacmd.Parameters.AddWithValue("@w_Key1", G_担当者CD.Text);
+                            Haitacmd.Parameters.AddWithValue("@w_Key2", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Key3", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Key4", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Promei", "担当者マスタ");
+                            Haitacmd.Parameters.AddWithValue("@w_HaitaDay", DateTime.Now);
+                            Haitacmd.Parameters.AddWithValue("@w_HaitaSyubetu", 0);
+                            Haitacmd.ExecuteNonQuery();
+                        }
+                    }
                 }
             }
 
             //画面のロック
-            if (C_処理区分.SelectedIndex == 2) // 2:削除
+            if (C_処理区分.SelectedIndex == 2 || w_Ok == false) // 2:削除
             {
                 F_AllLock(0);
+            }
+            else
+            {
+                F_AllLock(1);
             }
 
             return w_Ok;
@@ -592,6 +694,59 @@ namespace customerApp
         }
         #endregion
 
+        #region F_DeleteHaita / 排他情報の削除
+        /// <summary>
+        /// 排他情報の削除
+        /// </summary>
+        private void F_DeleteHaita(string i_MtanCD)
+        {
+            using (SqlConnection conn = new SqlConnection(Common.DB))
+            {
+
+                conn.Open();
+
+                //オペレータCDも条件に入れなければならないが、オペレータが複数人いる想定の設計にしていないため未実装とする
+                string sql = @"
+                   DELETE 
+                   FROM Ｆ排他
+                   WHERE キー項目_1 = @MtanCD";
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue(
+                        "@MtanCD",
+                        i_MtanCD);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        #endregion
+
+        #region M020_FormClosing / 画面の終了
+        /// <summary>
+        /// 画面の終了
+        /// </summary>
+        private void M020_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!m_CloseFLG)
+            {
+                if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    //排他情報の削除
+                    if (!string.IsNullOrWhiteSpace(G_担当者CD.Text))
+                    {
+                        F_DeleteHaita(G_担当者CD.Text);
+                    }
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+        #endregion
+
         #region F_Close / 画面の終了
         /// <summary>
         /// 画面の終了
@@ -600,6 +755,13 @@ namespace customerApp
         {
             if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                //排他情報の削除
+                if (!string.IsNullOrWhiteSpace(G_担当者CD.Text))
+                {
+                    F_DeleteHaita(G_担当者CD.Text);
+                }
+                m_CloseFLG = true;
+
                 this.Close();
             }
         }
@@ -629,6 +791,11 @@ namespace customerApp
         /// </summary>
         private void F_InitializeInput(int i_Kbn)
         {
+            //排他情報の削除
+            if (!string.IsNullOrWhiteSpace(G_担当者CD.Text) && !m_FormLoadFLG && i_Kbn != 2)
+            {
+                F_DeleteHaita(G_担当者CD.Text);
+            }
 
             CB_選択不可FLG.Checked = false;
 

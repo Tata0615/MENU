@@ -147,6 +147,7 @@
             CB_選択不可FLG.TabStop = false;
             CB_選択不可FLG.Text = "選択不可";
             CB_選択不可FLG.UseVisualStyleBackColor = true;
+            CB_選択不可FLG.Visible = false;
             CB_選択不可FLG.CheckedChanged += CB_選択不可FLG_CheckedChanged;
             // 
             // L_得意先
@@ -628,6 +629,7 @@
             MinimumSize = new Size(900, 580);
             Name = "M010";
             Text = "M010【得意先マスタ】";
+            FormClosing += M010_Closing;
             Load += MHE010_Load;
             KeyDown += MHE010_KeyDown;
             GB_処理区分.ResumeLayout(false);

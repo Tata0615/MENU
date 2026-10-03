@@ -140,7 +140,7 @@
             G_得意先CD.TabIndex = 5;
             G_得意先CD.Click += TextBox_Click;
             G_得意先CD.Enter += TextBox_Enter;
-            G_得意先CD.KeyPress += G_得意先CD_KeyPress;
+            G_得意先CD.KeyPress += NumberOnly_KeyPress;
             G_得意先CD.Leave += TextBox_Leave;
             G_得意先CD.Validating += G_得意先CD_Validating;
             // 
@@ -381,6 +381,7 @@
             D_請求計上日.Size = new Size(111, 25);
             D_請求計上日.TabIndex = 3;
             D_請求計上日.Value = new DateTime(2026, 9, 1, 0, 0, 0, 0);
+            D_請求計上日.ValueChanged += D_請求計上日_ValueChanged;
             // 
             // D_売上日
             // 
@@ -393,6 +394,7 @@
             D_売上日.Size = new Size(111, 25);
             D_売上日.TabIndex = 1;
             D_売上日.Value = new DateTime(2026, 9, 1, 0, 0, 0, 0);
+            D_売上日.ValueChanged += D_売上日_ValueChanged;
             // 
             // G_備考3
             // 
@@ -487,6 +489,7 @@
             L_即伝区分.TabIndex = 21;
             L_即伝区分.Text = "即伝区分";
             L_即伝区分.TextAlign = ContentAlignment.MiddleCenter;
+            L_即伝区分.Visible = false;
             // 
             // C_即伝区分
             // 
@@ -502,6 +505,7 @@
             C_即伝区分.Name = "C_即伝区分";
             C_即伝区分.Size = new Size(110, 25);
             C_即伝区分.TabIndex = 22;
+            C_即伝区分.Visible = false;
             // 
             // L_納品書種類
             // 
@@ -559,7 +563,7 @@
             G_担当者CD.TabIndex = 10;
             G_担当者CD.TextAlign = HorizontalAlignment.Right;
             G_担当者CD.Enter += TextBox_Enter;
-            G_担当者CD.KeyPress += G_担当者CD_KeyPress;
+            G_担当者CD.KeyPress += NumberOnly_KeyPress;
             G_担当者CD.Validating += G_担当者CD_Validating;
             // 
             // L_請求計上日
@@ -868,6 +872,9 @@
             // 
             // DG1
             // 
+            DG1.AllowUserToDeleteRows = false;
+            DG1.AllowUserToResizeColumns = false;
+            DG1.AllowUserToResizeRows = false;
             dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dataGridViewCellStyle1.BackColor = SystemColors.ButtonShadow;
             dataGridViewCellStyle1.Font = new Font("Yu Gothic UI", 9F);
@@ -895,7 +902,7 @@
             DG1.CellEndEdit += DG1_CellEndEdit;
             DG1.CellEnter += DG1_CellEnter;
             DG1.EditingControlShowing += DG1_EditingControlShowing;
-            DG1.KeyPress += NumberOnly_KeyPress;
+            DG1.Enter += DG1_Enter;
             DG1.Leave += DG1_Leave;
             // 
             // 商品CD
@@ -1035,6 +1042,7 @@
             MinimumSize = new Size(1000, 700);
             Name = "D030";
             Text = "D030【売上入力】";
+            FormClosing += D030_FormClosing;
             Load += D030_Load;
             KeyDown += D030_KeyDown;
             Leave += TextBox_Leave;

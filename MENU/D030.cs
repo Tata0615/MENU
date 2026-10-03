@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.VisualBasic;
 using System.Collections;
+using System.Diagnostics.Eventing.Reader;
 using System.Windows.Forms;
 
 namespace customerApp
@@ -21,6 +22,27 @@ namespace customerApp
         /// オペレータCD
         /// </summary>
         private string m_OperatorCD = "";
+        #endregion
+
+        #region 請求計上日チェックFLG
+        /// <summary>
+        /// 請求計上日チェックFLG
+        /// </summary>
+        private bool m_IsUpdatingSeiDay = false;
+        #endregion
+
+        #region 画面終了FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_CloseFLG = false;
+        #endregion
+
+        #region フォームロード判定FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_FormLoadFLG = true;
         #endregion
 
         #region 検索用変数
@@ -75,6 +97,14 @@ namespace customerApp
         private void D030_Load(object sender, EventArgs e)
         {
 
+            m_FormLoadFLG = true;
+
+            //明細部のソートを不可にする
+            foreach (DataGridViewColumn col in DG1.Columns)
+            {
+                col.SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+
             //初期値の設定
             F_InitializeInput(0);
             D_売上日.Text = DateTime.Now.ToString("yyyy/MM/dd");
@@ -93,16 +123,26 @@ namespace customerApp
             //照会画面から呼ばれたとき
             if (m_UriageNO != "")
             {
+                //呼び出された売上NOで、変更のみ可能とする
                 B_Key03.Enabled = false;
                 C_処理区分.SelectedIndex = 1; // 1:変更
                 C_処理区分.Enabled = false;
 
-                F_DispUri();
                 G_売上NO.Text = m_UriageNO;
+                F_DispUri();
                 G_売上NO.BackColor = Color.FromArgb(255, 255, 192);
                 G_売上NO.ReadOnly = true;
+                //締処理済みの場合は、全てロックする
+                if (!F_SeiSNCheck())
+                {
+                    F_AllLock(0);
+                }
+                //明細の選択状態を解除する(青い部分が残ったままになるので)
+                DG1.ClearSelection();
+                D_売上日.Focus();
             }
 
+            m_FormLoadFLG = false;
         }
         #endregion
 
@@ -114,13 +154,19 @@ namespace customerApp
         /// </summary>
         private void G_売上NO_Validating(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (G_売上NO.Text != "" && m_UriNOOld != Decimal.Parse(G_売上NO.Text))
+            if (G_売上NO.Text != "" && m_UriNOOld != Decimal.Parse(G_売上NO.Text) && m_UriageNO == "")
             {
+                //排他データの削除
+                F_DeleteHaita(m_UriNOOld);
+
                 m_UriNOOld = Decimal.Parse(G_売上NO.Text);
 
                 if (F_OnDisp(3))
                 {
                     B_Key12.Enabled = true;
+                    //明細の選択状態を解除する(青い部分が残ったままになるので)
+                    DG1.ClearSelection();
+                    D_売上日.Focus();
                 }
                 else
                 {
@@ -128,26 +174,6 @@ namespace customerApp
                     G_売上NO.Focus();
                 }
             }
-        }
-        #endregion
-
-        #region G_得意先CD_KeyPress /　得意先CD入力制御
-        /// <summary>
-        /// G_得意先CD_KeyPress /　得意先CD入力制御
-        /// </summary>
-        private void G_得意先CD_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            e.Handled = !char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar);
-        }
-        #endregion
-
-        #region G_担当者CD_KeyPress /　担当者CD入力制御
-        /// <summary>
-        /// G_担当者CD_KeyPress /　担当者CD入力制御
-        /// </summary>
-        private void G_担当者CD_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            e.Handled = !char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar);
         }
         #endregion
 
@@ -170,6 +196,47 @@ namespace customerApp
             }
 
             B_Key12.Enabled = true;
+        }
+        #endregion
+
+        #region D_売上日_ValueChanged /　売上日変更時
+        /// <summary>
+        /// D_売上日_ValueChanged /　売上日変更時
+        /// </summary>
+        private void D_売上日_ValueChanged(object sender, EventArgs e)
+        {
+            m_IsUpdatingSeiDay = true;
+            D_請求計上日.Value = D_売上日.Value;
+            m_IsUpdatingSeiDay = false;
+            F_SeiSNCheck();
+        }
+        #endregion
+
+        #region D_請求計上日_ValueChanged /　請求計上日変更時
+        /// <summary>
+        /// D_請求計上日_ValueChanged /　請求計上日変更時
+        /// </summary>
+        private void D_請求計上日_ValueChanged(object sender, EventArgs e)
+        {
+            // 売上日変更による自動変更なら何もしない
+            if (m_IsUpdatingSeiDay)
+            {
+                return;
+            }
+            if (D_請求計上日.Value < D_売上日.Value)
+            {
+                MessageBox.Show(
+                    "請求計上日は売上日以降の日付を入力してください",
+                    "警告",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                D_請求計上日.Value = D_売上日.Value;
+                D_請求計上日.Focus();
+            }
+            else
+            {
+                F_SeiSNCheck();
+            }
         }
         #endregion
 
@@ -318,15 +385,6 @@ namespace customerApp
         private void B_Key04_Click(object sender, EventArgs e)
         {
             F_Search();
-
-            //using (SD030 frm = new SD030())
-            //{
-            //    if (frm.ShowDialog() == DialogResult.OK)
-            //    {
-            //        G_売上NO.Text = frm.w_売上NO;
-            //        G_売上NO_Validating(G_売上NO, new System.ComponentModel.CancelEventArgs());
-            //    }
-            //}
         }
         #endregion
 
@@ -344,7 +402,7 @@ namespace customerApp
             if (F_Key012Syori() == true)
             {
                 F_InitializeInput(1);
-                G_得意先CD.Focus();
+                G_売上NO.Focus();
             }
         }
         #endregion
@@ -384,17 +442,6 @@ namespace customerApp
                 case Keys.F4:
                     F_Search();
                     break;
-                    //if (this.ActiveControl == G_売上NO)
-                    //{
-                    //    using (SD030 frm = new SD030())
-                    //    {
-                    //        if (frm.ShowDialog() == DialogResult.OK)
-                    //        {
-                    //            G_売上NO.Text = frm.w_売上NO;
-                    //            G_売上NO_Validating(G_売上NO, new System.ComponentModel.CancelEventArgs());
-                    //        }
-                    //    }
-                    //}
 
                 case Keys.F12:
                     if (F_Check())
@@ -402,7 +449,7 @@ namespace customerApp
                         if (F_Key012Syori() == true)
                         {
                             F_InitializeInput(1);
-                            G_得意先CD.Focus();
+                            G_売上NO.Focus();
                         }
                     }
                     break;
@@ -419,32 +466,34 @@ namespace customerApp
             if (m_SelectAll == false)
             {
                 m_SelectAll = true;
-                TextBox tb = (TextBox)sender;
-                BeginInvoke(new Action(tb.SelectAll));
+                TextBox w_tb = (TextBox)sender;
+                //クリック処理終了後、テキストボックスの内容を全選択する(クリックした位置にかかわらず、全選択されてほしいので)
+                BeginInvoke(new Action(w_tb.SelectAll));
             }
         }
         #endregion
 
-        #region TextBox_Enter / エンター押下時
+        #region TextBox_Enter / フォーカス取得時
         /// <summary>
-        /// エンター押下時
+        /// フォーカス取得時
         /// </summary>
         private void TextBox_Enter(object sender, EventArgs e)
         {
-
             if (C_処理区分.SelectedIndex != 0 && sender == G_売上NO && m_UriageNO == "") // 0:登録
             {
                 B_Key04.Enabled = true;
                 m_SeachUri = true;
                 m_SeachTok = false;
                 m_SeachTan = false;
+                m_SeachSyo = false;
             }
-            else if(sender == G_得意先CD)
+            else if (sender == G_得意先CD)
             {
                 B_Key04.Enabled = true;
                 m_SeachUri = false;
                 m_SeachTok = true;
                 m_SeachTan = false;
+                m_SeachSyo = false;
             }
             else if (sender == G_担当者CD)
             {
@@ -452,6 +501,7 @@ namespace customerApp
                 m_SeachUri = false;
                 m_SeachTok = false;
                 m_SeachTan = true;
+                m_SeachSyo = false;
             }
             else
             {
@@ -459,13 +509,15 @@ namespace customerApp
                 m_SeachUri = false;
                 m_SeachTok = false;
                 m_SeachTan = false;
+                m_SeachSyo = false;
             }
 
             if (m_SelectAll == false)
             {
                 m_SelectAll = true;
-                TextBox tb = (TextBox)sender;
-                BeginInvoke(new Action(tb.SelectAll));
+                TextBox w_tb = (TextBox)sender;
+                //クリック処理終了後、テキストボックスの内容を全選択する(クリックした位置にかかわらず、全選択されてほしいので)
+                BeginInvoke(new Action(w_tb.SelectAll));
             }
         }
         #endregion
@@ -492,25 +544,25 @@ namespace customerApp
         /// </summary>
         private void DG1_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
-            if (e.Control is TextBox tb)
+            if (e.Control is TextBox w_tb)
             {
-                string col = DG1.CurrentCell.OwningColumn.Name;
+                string w_col = DG1.CurrentCell.OwningColumn.Name;
 
                 // まず必ず解除
-                tb.KeyPress -= NumberOnly_KeyPress;
+                w_tb.KeyPress -= NumberOnly_KeyPress;
 
-                if (col == "明細備考")
+                if (w_col == "明細備考" || w_col == "単位")
                 {
-                    tb.ImeMode = ImeMode.Hiragana;
+                    w_tb.ImeMode = ImeMode.Hiragana;
                 }
-                else if (col == "数量" || col == "売上単価" || col == "売上金額")
+                else if (w_col == "数量" || w_col == "売上単価" || w_col == "売上金額")
                 {
-                    tb.ImeMode = ImeMode.Off;
-                    tb.KeyPress += NumberOnly_KeyPress;
+                    w_tb.ImeMode = ImeMode.Off;
+                    w_tb.KeyPress += NumberOnly_KeyPress;
                 }
                 else
                 {
-                    tb.ImeMode = ImeMode.Off;
+                    w_tb.ImeMode = ImeMode.Off;
                 }
             }
         }
@@ -522,6 +574,7 @@ namespace customerApp
         /// </summary>
         private void NumberOnly_KeyPress(object sender, KeyPressEventArgs e)
         {
+            //制御文字ではない、かつ数字でない場合は入力を無効にする
             if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
             {
                 e.Handled = true;
@@ -554,35 +607,69 @@ namespace customerApp
         //#endregion
         #endregion
 
+        #region DG1_Enter / 明細部フォーカス取得時
+        /// <summary>
+        /// 明細部フォーカス取得時
+        /// </summary>
+        private void DG1_Enter(object sender, EventArgs e)
+        {
+            //Tab移動した際は商品CDにフォーカスを当てる
+            if (DG1.Rows.Count > 0)
+            {
+                DG1.CurrentCell = DG1.Rows[0].Cells["商品CD"];
+            }
+            //DG1.ClearSelection();
+        }
+        #endregion
+
         #region DG1_CellEnter / 明細部タブ遷移制御
         /// <summary>
         /// 明細部タブ遷移制御
         /// </summary>
         private void DG1_CellEnter(object sender, DataGridViewCellEventArgs e)
         {
-            string col = DG1.Columns[e.ColumnIndex].Name;
+            string w_col = DG1.Columns[e.ColumnIndex].Name;
 
             // IME切替
-            if (col == "明細備考")
+            if (w_col == "明細備考")
                 DG1.ImeMode = ImeMode.Hiragana;
             else
                 DG1.ImeMode = ImeMode.Off;
 
             // 商品名に入ったら数量へ移動
-            if (col == "商品名" && m_SyoNULLFLG == false)
+            if (w_col == "商品名" && m_SyoNULLFLG == false)
             {
                 BeginInvoke(new Action(() =>
                 {
                     DG1.CurrentCell = DG1.Rows[e.RowIndex].Cells["数量"];
                 }));
             }
-            else if (col == "商品名" && m_SyoNULLFLG == true)
+            else if (w_col == "商品名" && m_SyoNULLFLG == true)
             {
                 BeginInvoke(new Action(() =>
                 {
                     DG1.CurrentCell = DG1.Rows[e.RowIndex].Cells["商品CD"];
                 }));
             }
+
+            //商品CDにフォーカスがあるなら、検索有効化
+            if (w_col == "商品CD")
+            {
+                B_Key04.Enabled = true;
+                m_SeachUri = false;
+                m_SeachTok = false;
+                m_SeachTan = false;
+                m_SeachSyo = true;
+            }
+            else
+            {
+                B_Key04.Enabled = false;
+                m_SeachUri = false;
+                m_SeachTok = false;
+                m_SeachTan = false;
+                m_SeachSyo = false;
+            }
+
         }
 
         #endregion
@@ -595,58 +682,11 @@ namespace customerApp
         {
             m_SyoNULLFLG = false;
             int w_Row = e.RowIndex;
+            string w_Col = DG1.Columns[e.ColumnIndex].Name;
             string w_Syocd = DG1.Rows[w_Row].Cells["商品CD"].Value?.ToString() ?? "";
 
-            DG1.Rows[w_Row].Cells["商品CD"].Value = w_Syocd.PadLeft(10, '0');
-
-            if (DG1.Columns[e.ColumnIndex].Name == "商品CD")
-            {
-                if (w_Syocd != "")
-                {
-                    using (SqlConnection conn = new SqlConnection(Common.DB))
-                    {
-                        conn.Open();
-
-                        string sql = @"
-                         SELECT *
-                         FROM Ｍ商品
-                         WHERE 商品CD = @SyoCD";
-
-                        using (SqlCommand cmd = new SqlCommand(sql, conn))
-                        {
-                            cmd.Parameters.AddWithValue(
-                            "@SyoCD",
-                             DG1.Rows[w_Row].Cells["商品CD"].Value);
-
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                if (reader.Read())
-                                {
-                                    DG1.Rows[w_Row].Cells["商品名"].Value = reader["商品名"];
-                                    DG1.Rows[w_Row].Cells["税率"].Value = "外税" + reader["消費税率"] + "%";
-                                    DG1.Rows[w_Row].Cells["単位"].Value = reader["単位名"];
-                                    DG1.Rows[w_Row].Cells["売上単価"].Value = reader["単価"];
-                                    DG1.Rows[w_Row].Cells["完納"].Value = 1; // 1:完納ON
-                                }
-                                else
-                                {
-                                    MessageBox.Show(
-                                    "入力されたCDは存在しません",
-                                    "警告",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Warning);
-
-                                    m_SyoNULLFLG = true;
-
-                                    DG1.CurrentCell = DG1.Rows[w_Row].Cells["商品CD"];
-                                    F_CellClear(w_Row);
-
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            //商品CD入力時の処理
+            F_DispMeisai(w_Row, w_Syocd, w_Col);
 
             if (m_SyoNULLFLG == false)
             {
@@ -657,20 +697,33 @@ namespace customerApp
                     int w_Tanka = Convert.ToInt32(DG1.Rows[w_Row].Cells["売上単価"].Value ?? 0);
 
                     DG1.Rows[w_Row].Cells["売上金額"].Value = w_Suryo * w_Tanka;
+
+                    if (Convert.ToInt32(DG1.Rows[w_Row].Cells["売上金額"].Value ?? 0) != 0)
+                    {
+                        Color w_ReadOnlyColor = Color.FromArgb(255, 255, 192);  // Lock
+                        DG1.Rows[w_Row].Cells["売上金額"].ReadOnly = true;
+                        DG1.Rows[w_Row].Cells["売上金額"].Style.BackColor = w_ReadOnlyColor;
+                    }
+                    else
+                    {
+                        Color w_ReadOnlyColor2 = Color.White; // UnLock
+                        DG1.Rows[w_Row].Cells["売上金額"].ReadOnly = false;
+                        DG1.Rows[w_Row].Cells["売上金額"].Style.BackColor = w_ReadOnlyColor2;
+                    }
                 }
 
                 F_Gokei();
-            }
 
-            string col = DG1.Columns[e.ColumnIndex].Name;
+                string col = DG1.Columns[e.ColumnIndex].Name;
 
-            if (col == "数量" || col == "売上単価" || col == "売上金額")
-            {
-                DataGridViewCell cell = DG1[e.ColumnIndex, e.RowIndex];
-
-                if (int.TryParse(cell.Value?.ToString(), out int num))
+                if (col == "数量" || col == "売上単価" || col == "売上金額")
                 {
-                    cell.Value = num;
+                    DataGridViewCell cell = DG1[e.ColumnIndex, e.RowIndex];
+
+                    if (int.TryParse(cell.Value?.ToString(), out int num))
+                    {
+                        cell.Value = num;
+                    }
                 }
             }
         }
@@ -682,12 +735,7 @@ namespace customerApp
         /// </summary>
         private void DG1_Leave(object sender, EventArgs e)
         {
-            // コントロール選択情報を初期化(タブ移動で明細→ヘッダーへ移動すると最後に選択された部分が残った状態のままになるのを防ぐ)
-            if (DG1.Rows.Count > 0)
-            {
-                DG1.CurrentCell = DG1.Rows[0].Cells["商品CD"];
-            }
-
+            //明細部の選択状態を解除する
             DG1.ClearSelection();
         }
 
@@ -741,6 +789,14 @@ namespace customerApp
             {
                 conn.Open();
 
+                //排他チェック用SQL
+                string HaitaChecksql = @"
+                 SELECT *
+                 FROM Ｆ排他 FHTA WITH(NOLOCK)
+                 WHERE FHTA.入力種類 = 3
+                   AND FHTA.入力NO = @UriNO";
+
+                //売上データ用SQL
                 string sql = @"
                  SELECT *,
                         MTAN.担当者名
@@ -751,7 +807,7 @@ namespace customerApp
                    DUHD.担当者CD = MTAN.担当者CD
                  WHERE DUHD.売上NO = @UriNO";
 
-                //デバッグ用
+                //売上データ確認用SQL
                 string w_DebugSQL =
                 $"SELECT *,MTAN.担当者名 FROM Ｄ売上ヘッダー DUHD WITH(NOLOCK)" +
                 $" INNER JOIN Ｄ売上明細 DUMS WITH(NOLOCK)" +
@@ -759,6 +815,31 @@ namespace customerApp
                 $" LEFT JOIN Ｍ担当者 MTAN WITH(NOLOCK) ON" +
                 $" DUHD.担当者CD = MTAN.担当者CD" +
                 $" WHERE DUHD.売上NO = '{G_売上NO.Text}'";
+
+                using (SqlCommand cmd = new SqlCommand(HaitaChecksql, conn))
+                {
+                    if (m_UriageNO != "")
+                    {
+                        cmd.Parameters.AddWithValue("@UriNO", m_UriageNO);
+                    }
+                    else
+                    {
+                        cmd.Parameters.AddWithValue("@UriNO", G_売上NO.Text);
+                    }
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            MessageBox.Show(
+                                "他のオペレータが編集中です",
+                                "警告",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            w_Ok = false;
+                        }
+                    }
+                }
 
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
@@ -854,22 +935,159 @@ namespace customerApp
                             }
                         }
                     }
+
+                    if (w_Ok)
+                    {
+                        //排他ロック
+                        string Haitasql = @"
+                                INSERT INTO Ｆ排他
+                                (
+                                    オペレータCD,
+                                    PROID,
+                                    入力種類,
+                                    入力NO,
+                                    テーブル名,
+                                    キー項目_1,
+                                    キー項目_2,
+                                    キー項目_3,
+                                    キー項目_4,
+                                    プログラム名,
+                                    排他日時,
+                                    排他種別
+                                )
+                                VALUES
+                                (
+                                    @w_OperatorCD,
+                                    @w_TorokuPROID,
+                                    @w_NyuSyurui,
+                                    @w_NyuNO,
+                                    @w_Tablemei,
+                                    @w_Key1,
+                                    @w_Key2,
+                                    @w_Key3,
+                                    @w_Key4,
+                                    @w_Promei,
+                                    @w_HaitaDay,
+                                    @w_HaitaSyubetu
+                                )";
+
+                        using (SqlCommand Haitacmd = new SqlCommand(Haitasql, conn))
+                        {
+                            Haitacmd.Parameters.AddWithValue("@w_OperatorCD", m_OperatorCD);
+                            Haitacmd.Parameters.AddWithValue("@w_TorokuPROID", m_TorokuPROID);
+                            Haitacmd.Parameters.AddWithValue("@w_NyuSyurui", 3); // 3:売上
+                            Haitacmd.Parameters.AddWithValue("@w_NyuNO", G_売上NO.Text);
+                            Haitacmd.Parameters.AddWithValue("@w_Tablemei", "Ｄ売上ヘッダー");
+                            Haitacmd.Parameters.AddWithValue("@w_Key1", G_売上NO.Text);
+                            Haitacmd.Parameters.AddWithValue("@w_Key2", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Key3", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Key4", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Promei", "売上入力");
+                            Haitacmd.Parameters.AddWithValue("@w_HaitaDay", DateTime.Now);
+                            Haitacmd.Parameters.AddWithValue("@w_HaitaSyubetu", 0);
+                            Haitacmd.ExecuteNonQuery();
+                        }
+                    }
                 }
             }
 
             //画面のロック
-            if (C_処理区分.SelectedIndex == 2) // 2:削除
+            //売上金額のロック
+            if (DG1.Rows.Count > 0)
+            {
+                for (int w_Row = 0; w_Row < DG1.Rows.Count; w_Row++)
+                {
+                    if (Convert.ToInt32(DG1.Rows[w_Row].Cells["売上単価"].Value ?? 0) != 0)
+                    {
+                        Color w_ReadOnlyColor = Color.FromArgb(255, 255, 192);
+                        DG1.Rows[w_Row].Cells["売上金額"].Style.BackColor = w_ReadOnlyColor;
+                        DG1.Rows[w_Row].Cells["売上金額"].ReadOnly = true;
+                    }
+                }
+            }
+            //画面のロック制御
+            if (C_処理区分.SelectedIndex == 2 || w_Ok == false) // 2:削除
             {
                 F_AllLock(0);
+            }
+            else
+            {
+                F_AllLock(1);
             }
 
             return w_Ok;
         }
         #endregion
 
-        #region F_Update / 得意先情報の更新
+        #region F_DispMeisai / 商品CD入力時の処理
         /// <summary>
-        /// 得意先情報を更新する
+        /// 商品CD入力時の処理
+        /// </summary>
+        private void F_DispMeisai(int i_Row, string i_SyoCD, string i_Col)
+        {
+            if (i_SyoCD != "")
+            {
+                DG1.Rows[i_Row].Cells["商品CD"].Value = i_SyoCD.PadLeft(10, '0');
+            }
+            else
+            {
+                return;
+            }
+
+            if (i_Col == "商品CD")
+            {
+                if (i_SyoCD != "")
+                {
+                    using (SqlConnection conn = new SqlConnection(Common.DB))
+                    {
+                        conn.Open();
+
+                        string sql = @"
+                         SELECT *
+                         FROM Ｍ商品
+                         WHERE 商品CD = @SyoCD";
+
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue(
+                            "@SyoCD",
+                             DG1.Rows[i_Row].Cells["商品CD"].Value);
+
+                            using (SqlDataReader reader = cmd.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    DG1.Rows[i_Row].Cells["商品名"].Value = reader["商品名"];
+                                    DG1.Rows[i_Row].Cells["税率"].Value = "外税" + reader["消費税率"] + "%";
+                                    DG1.Rows[i_Row].Cells["単位"].Value = reader["単位名"];
+                                    DG1.Rows[i_Row].Cells["売上単価"].Value = reader["単価"];
+                                    DG1.Rows[i_Row].Cells["完納"].Value = 1; // 1:完納ON
+                                }
+                                else
+                                {
+                                    MessageBox.Show(
+                                    "入力されたCDは存在しません",
+                                    "警告",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning);
+
+                                    m_SyoNULLFLG = true;
+
+                                    DG1.CurrentCell = DG1.Rows[i_Row].Cells["商品CD"];
+                                    F_CellClear(i_Row);
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region F_Update / 売上情報の更新
+        /// <summary>
+        /// 売上情報を更新する
         /// </summary>
         private bool F_Update()
         {
@@ -1318,9 +1536,9 @@ namespace customerApp
 
         #endregion
 
-        #region F_Delete / 得意先情報の削除
+        #region F_Delete / 売上情報の削除
         /// <summary>
-        /// 得意先情報の削除
+        /// 売上情報の削除
         /// </summary>
         private void F_Delete()
         {
@@ -1382,6 +1600,60 @@ namespace customerApp
         }
         #endregion
 
+        #region F_DeleteHaita / 排他情報の削除
+        /// <summary>
+        /// 排他情報の削除
+        /// </summary>
+        private void F_DeleteHaita(decimal i_UriNO)
+        {
+            using (SqlConnection conn = new SqlConnection(Common.DB))
+            {
+
+                conn.Open();
+
+                //オペレータCDも条件に入れなければならないが、オペレータが複数人いる想定の設計にしていないため未実装とする
+                string sql = @"
+                   DELETE 
+                   FROM Ｆ排他
+                   WHERE 入力NO = @UriageNO
+                     AND 入力種類 = 3";
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue(
+                        "@UriageNO",
+                        i_UriNO);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        #endregion
+
+        #region F_Close / 画面の終了
+        /// <summary>
+        /// 画面の終了
+        /// </summary>
+        private void D030_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (!m_CloseFLG)
+            {
+                if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    //排他情報の削除
+                    if (!string.IsNullOrWhiteSpace(G_売上NO.Text))
+                    {
+                        F_DeleteHaita(Decimal.Parse(G_売上NO.Text));
+                    }
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+        #endregion
+
         #region F_Close / 画面の終了
         /// <summary>
         /// 画面の終了
@@ -1390,6 +1662,13 @@ namespace customerApp
         {
             if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                //排他情報の削除
+                if (!string.IsNullOrWhiteSpace(G_売上NO.Text))
+                {
+                    F_DeleteHaita(Decimal.Parse(G_売上NO.Text));
+                }
+                m_CloseFLG = true;
+
                 this.Close();
             }
         }
@@ -1419,6 +1698,12 @@ namespace customerApp
         /// </summary>
         private void F_InitializeInput(int i_Kbn)
         {
+
+            //排他情報の削除
+            if (!string.IsNullOrWhiteSpace(G_売上NO.Text) && !m_FormLoadFLG && i_Kbn != 2)
+            {
+                F_DeleteHaita(Decimal.Parse(G_売上NO.Text));
+            }
 
             if (i_Kbn == 0)
             {
@@ -1497,6 +1782,8 @@ namespace customerApp
         /// </summary>
         private bool F_Check()
         {
+            bool w_ok = true;
+
             //必須項目のチェック
             if (C_処理区分.SelectedIndex != 0) // 0:登録
             {
@@ -1512,6 +1799,15 @@ namespace customerApp
                 MessageBox.Show("入力必須です", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 G_得意先CD.Focus();
                 return false;
+            }
+            else
+            {
+                w_ok = F_SeiSNCheck();
+
+                if (!w_ok)
+                {
+                    return false;
+                }                
             }
             if (string.IsNullOrWhiteSpace(G_担当者CD.Text))
             {
@@ -1537,6 +1833,53 @@ namespace customerApp
                     DG1.BeginEdit(true);
                     return false;
                 }
+            }
+
+            return true;
+        }
+        #endregion
+
+        #region F_SeiSNCheck / 請求計上日チェック
+        /// <summary>
+        /// 請求計上日チェック
+        /// </param>
+        /// </summary>
+        private bool F_SeiSNCheck()
+        {
+            using (SqlConnection conn = new SqlConnection(Common.DB))
+            {
+                conn.Open();
+
+                string sql = @"
+                     SELECT *
+                     FROM Ｍ得意先
+                     WHERE 得意先CD = @TokuisakiCD";
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue(
+                        "@TokuisakiCD",
+                        G_得意先CD.Text);
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            DateTime? w_SeiSN = reader["前回請求締年月日"] == DBNull.Value ? null : Convert.ToDateTime(reader["前回請求締年月日"]);
+
+                            if (!w_SeiSN.HasValue)
+                            {
+                                return true;
+                            }
+                            else if (D_請求計上日.Value < w_SeiSN)
+                            {
+                                MessageBox.Show("前回請求締年月日以前の日付(" + Convert.ToDateTime(w_SeiSN).ToString("yyyy/MM/dd") + ")は入力できません", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                D_請求計上日.Focus();
+                                return false;
+                            }
+                        }
+                    }
+                }
+
             }
 
             return true;
@@ -1720,6 +2063,23 @@ namespace customerApp
         /// </summary>
         private void F_Search()
         {
+            if (!m_SeachSyo)
+            {
+                F_SearchHeader();
+            }
+            else
+            {
+                F_SearchSyo();
+            }
+        }
+        #endregion
+
+        #region F_SearchHeader / 検索画面の表示(ヘッダー)
+        /// <summary>
+        /// 検索画面の表示(ヘッダー)
+        /// </summary>
+        private void F_SearchHeader()
+        {
             if (m_SeachUri == true)
             {
                 using (SD030 frm = new SD030())
@@ -1731,7 +2091,7 @@ namespace customerApp
                     }
                 }
             }
-            if (m_SeachTok == true)
+            if (m_SeachTok == true && G_得意先CD.ReadOnly == false)
             {
                 using (SM010 frm = new SM010())
                 {
@@ -1742,7 +2102,7 @@ namespace customerApp
                     }
                 }
             }
-            if (m_SeachTan == true)
+            if (m_SeachTan == true && G_担当者CD.ReadOnly == false)
             {
                 using (SM020 frm = new SM020())
                 {
@@ -1750,6 +2110,27 @@ namespace customerApp
                     {
                         G_担当者CD.Text = frm.m_担当者CD;
                         G_担当者CD_Validating(G_担当者CD, new System.ComponentModel.CancelEventArgs());
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region F_SearchSyo / 検索画面の表示(明細)
+        /// <summary>
+        /// 検索画面の表示(明細)
+        /// </summary>
+        private void F_SearchSyo()
+        {
+            int w_Row = DG1.CurrentCell.RowIndex;
+            if (m_SeachSyo == true && DG1.Rows[w_Row].Cells["商品CD"].ReadOnly == false)
+            {
+                using (SM030 frm = new SM030())
+                {
+                    if (frm.ShowDialog() == DialogResult.OK)
+                    {
+                        DG1.Rows[w_Row].Cells["商品CD"].Value = frm.m_商品CD;
+                        F_DispMeisai(w_Row, frm.m_商品CD, "商品CD");
                     }
                 }
             }

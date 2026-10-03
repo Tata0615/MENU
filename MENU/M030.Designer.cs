@@ -397,6 +397,7 @@
             MinimumSize = new Size(900, 580);
             Name = "M030";
             Text = "M030【商品マスタ】";
+            FormClosing += M030_Closing;
             Load += M030_Load;
             KeyDown += MHE010_KeyDown;
             GB_処理区分.ResumeLayout(false);

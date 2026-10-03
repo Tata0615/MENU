@@ -54,9 +54,9 @@
             G_住所1 = new TextBox();
             L_郵便番号 = new Label();
             groupBox1 = new GroupBox();
+            B_Key04 = new Button();
             B_Key03 = new Button();
             B_Key01 = new Button();
-            B_Key04 = new Button();
             GB_処理区分.SuspendLayout();
             GB_登録内容.SuspendLayout();
             groupBox1.SuspendLayout();
@@ -140,6 +140,7 @@
             CB_選択不可FLG.TabStop = false;
             CB_選択不可FLG.Text = "選択不可";
             CB_選択不可FLG.UseVisualStyleBackColor = true;
+            CB_選択不可FLG.Visible = false;
             CB_選択不可FLG.CheckedChanged += CB_選択不可FLG_CheckedChanged;
             // 
             // L_担当者CD
@@ -457,6 +458,18 @@
             groupBox1.TabIndex = 9;
             groupBox1.TabStop = false;
             // 
+            // B_Key04
+            // 
+            B_Key04.BackColor = Color.White;
+            B_Key04.Location = new Point(217, 13);
+            B_Key04.Name = "B_Key04";
+            B_Key04.Size = new Size(105, 36);
+            B_Key04.TabIndex = 5;
+            B_Key04.TabStop = false;
+            B_Key04.Text = "F4:検索";
+            B_Key04.UseVisualStyleBackColor = false;
+            B_Key04.Click += B_Key04_Click;
+            // 
             // B_Key03
             // 
             B_Key03.BackColor = Color.White;
@@ -482,18 +495,6 @@
             B_Key01.UseVisualStyleBackColor = false;
             B_Key01.Click += B_Key01_Click;
             // 
-            // B_Key04
-            // 
-            B_Key04.BackColor = Color.White;
-            B_Key04.Location = new Point(217, 13);
-            B_Key04.Name = "B_Key04";
-            B_Key04.Size = new Size(105, 36);
-            B_Key04.TabIndex = 5;
-            B_Key04.TabStop = false;
-            B_Key04.Text = "F4:検索";
-            B_Key04.UseVisualStyleBackColor = false;
-            B_Key04.Click += B_Key04_Click;
-            // 
             // M020
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -507,6 +508,7 @@
             MinimumSize = new Size(900, 580);
             Name = "M020";
             Text = "M020【担当者マスタ】";
+            FormClosing += M020_Closing;
             Load += MHE020_Load;
             KeyDown += MHE010_KeyDown;
             GB_処理区分.ResumeLayout(false);
