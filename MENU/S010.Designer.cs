@@ -289,6 +289,7 @@
             // 
             前回請求締年月日.HeaderText = "前回請求締年月日";
             前回請求締年月日.Name = "前回請求締年月日";
+            前回請求締年月日.Width = 130;
             // 
             // S010
             // 
@@ -303,6 +304,7 @@
             MinimumSize = new Size(900, 580);
             Name = "S010";
             Text = "S010【請求集計処理】";
+            FormClosing += S010_Closing;
             Load += S010_Load;
             KeyDown += S010_KeyDown;
             GB_処理区分.ResumeLayout(false);

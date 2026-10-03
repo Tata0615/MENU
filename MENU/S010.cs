@@ -27,6 +27,20 @@ namespace customerApp
         private bool m_SelectAll = false;
         #endregion
 
+        #region 画面終了FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_CloseFLG = false;
+        #endregion
+
+        #region フォームロード判定FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_FormLoadFLG = true;
+        #endregion
+
         #endregion
 
         #region プライベート定数
@@ -55,6 +69,7 @@ namespace customerApp
         /// </summary>
         private void S010_Load(object sender, EventArgs e)
         {
+            m_FormLoadFLG = true;
 
             //初期値の設定
             F_InitializeInput(0);
@@ -81,6 +96,8 @@ namespace customerApp
 #else
                 m_OperatorCD = "9999";
 #endif
+
+            m_FormLoadFLG = false;
         }
         #endregion
 
@@ -102,6 +119,7 @@ namespace customerApp
                 F_AllLock(1);
 
                 m_SyoriKbnOld = C_処理区分.SelectedIndex;
+                B_Key12.Enabled = true;
             }
         }
         #endregion
@@ -248,6 +266,35 @@ namespace customerApp
             {
                 conn.Open();
 
+                //排他チェック用SQL
+                string HaitaChecksql = @"
+                 SELECT *
+                 FROM Ｆ排他 FHTA WITH(NOLOCK)
+                 WHERE FHTA.キー項目_1 = @SeiSN";
+
+                using (SqlCommand cmd = new SqlCommand(HaitaChecksql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@SeiSN", D_請求締年月日.Text);
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            MessageBox.Show(
+                                "他のオペレータが編集中です",
+                                "警告",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            w_Ok = false;
+                            B_Key12.Enabled = false;
+                        }
+                        else
+                        {
+                            B_Key12.Enabled = true;
+                        }
+                    }
+                }
+
                 if (C_処理区分.SelectedIndex == 0) //0:集計
                 {
                     sql = @"
@@ -263,8 +310,8 @@ namespace customerApp
                            DUHD.請求先CD = MTOK.得意先CD
                      WHERE 0 = 0
                        AND (MTOK.前回請求締年月日 IS NULL
-                        OR MTOK.前回請求締年月日 < DUHD.売上日)
-                       AND DUHD.売上日 <= @SeiSN
+                        OR MTOK.前回請求締年月日 < DUHD.請求計上日)
+                       AND DUHD.請求計上日 <= @SeiSN
                      GROUP BY
                        DUHD.得意先CD
                       ,DUHD.得意先名
@@ -284,8 +331,8 @@ namespace customerApp
                     $"       DUHD.請求先CD = MTOK.得意先CD" +
                     $" WHERE 0 = 0" +
                     $"   AND (MTOK.前回請求締年月日 IS NULL" +
-                    $"    OR MTOK.前回請求締年月日 < DUHD.売上日)" +
-                    $"   AND DUHD.売上日 <= '" + Convert.ToDateTime(D_請求締年月日.Text).ToString("yyyy/MM/dd") + "'" +
+                    $"    OR MTOK.前回請求締年月日 < DUHD.請求計上日)" +
+                    $"   AND DUHD.請求計上日 <= '" + Convert.ToDateTime(D_請求締年月日.Text).ToString("yyyy/MM/dd") + "'" +
                     $" GROUP BY" +
                     $"   DUHD.得意先CD" +
                     $"  ,DUHD.得意先名" +
@@ -372,6 +419,58 @@ namespace customerApp
                             }
                         }
                     }
+                    if (w_Ok)
+                    {
+                        //排他ロック
+                        string Haitasql = @"
+                                INSERT INTO Ｆ排他
+                                (
+                                    オペレータCD,
+                                    PROID,
+                                    入力種類,
+                                    入力NO,
+                                    テーブル名,
+                                    キー項目_1,
+                                    キー項目_2,
+                                    キー項目_3,
+                                    キー項目_4,
+                                    プログラム名,
+                                    排他日時,
+                                    排他種別
+                                )
+                                VALUES
+                                (
+                                    @w_OperatorCD,
+                                    @w_TorokuPROID,
+                                    @w_NyuSyurui,
+                                    @w_NyuNO,
+                                    @w_Tablemei,
+                                    @w_Key1,
+                                    @w_Key2,
+                                    @w_Key3,
+                                    @w_Key4,
+                                    @w_Promei,
+                                    @w_HaitaDay,
+                                    @w_HaitaSyubetu
+                                )";
+
+                        using (SqlCommand Haitacmd = new SqlCommand(Haitasql, conn))
+                        {
+                            Haitacmd.Parameters.AddWithValue("@w_OperatorCD", m_OperatorCD);
+                            Haitacmd.Parameters.AddWithValue("@w_TorokuPROID", m_TorokuPROID);
+                            Haitacmd.Parameters.AddWithValue("@w_NyuSyurui", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_NyuNO", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Tablemei", "Ｓ請求残高");
+                            Haitacmd.Parameters.AddWithValue("@w_Key1", D_請求締年月日.Text);
+                            Haitacmd.Parameters.AddWithValue("@w_Key2", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Key3", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Key4", 0);
+                            Haitacmd.Parameters.AddWithValue("@w_Promei", "請求集計処理");
+                            Haitacmd.Parameters.AddWithValue("@w_HaitaDay", DateTime.Now);
+                            Haitacmd.Parameters.AddWithValue("@w_HaitaSyubetu", 0);
+                            Haitacmd.ExecuteNonQuery();
+                        }
+                    }
                 }
             }
 
@@ -411,6 +510,14 @@ namespace customerApp
                         //明細の数だけ回す
                         for (int w_Row = 0; w_Row < DG1.Rows.Count; w_Row++)
                         {
+
+                            bool w_Target = Convert.ToBoolean(DG1.Rows[w_Row].Cells["対象"].Value ?? false);
+
+                            if (!w_Target)
+                            {
+                                continue;
+                            }
+
                             string w_MTOKCD = DG1.Rows[w_Row].Cells["請求先CD"].Value?.ToString() ?? "";
                             DateTime? w_ZSeiSN_SSEI = DG1.Rows[w_Row].Cells["前回請求締年月日"].Value == DBNull.Value ? null : Convert.ToDateTime(DG1.Rows[w_Row].Cells["前回請求締年月日"].Value);
 
@@ -446,7 +553,7 @@ namespace customerApp
                                     WHERE 0 = 0
                                       AND 得意先CD = @MTOKCD
                                       AND 請求締年月日 IS NULL
-                                      AND 売上日 <= @w_SeiSN";
+                                      AND 請求計上日 <= @w_SeiSN";
 
                             using (SqlCommand cmd = new SqlCommand(DUHDsql, conn, tran))
                             {
@@ -533,9 +640,9 @@ namespace customerApp
 
         #endregion
 
-        #region F_Delete / 得意先情報の削除
+        #region F_Delete / 請求情報の削除
         /// <summary>
-        /// 得意先情報の削除
+        /// 請求情報の削除
         /// </summary>
         private bool F_Delete()
         {
@@ -557,6 +664,13 @@ namespace customerApp
                         //明細の数だけ回す
                         for (int w_Row = 0; w_Row < DG1.Rows.Count; w_Row++)
                         {
+
+                            bool w_Target = Convert.ToBoolean(DG1.Rows[w_Row].Cells["対象"].Value ?? false);
+
+                            if (!w_Target)
+                            {
+                                continue;
+                            }
 
                             string w_MTOKCD = DG1.Rows[w_Row].Cells["請求先CD"].Value?.ToString() ?? "";
 
@@ -664,6 +778,59 @@ namespace customerApp
         }
         #endregion
 
+        #region F_DeleteHaita / 排他情報の削除
+        /// <summary>
+        /// 排他情報の削除
+        /// </summary>
+        private void F_DeleteHaita(string i_SeiSN)
+        {
+            using (SqlConnection conn = new SqlConnection(Common.DB))
+            {
+
+                conn.Open();
+
+                //オペレータCDも条件に入れなければならないが、オペレータが複数人いる想定の設計にしていないため未実装とする
+                string sql = @"
+                   DELETE 
+                   FROM Ｆ排他
+                   WHERE キー項目_1 = @SeiSN";
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue(
+                        "@SeiSN",
+                        i_SeiSN);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        #endregion
+
+        #region S010_FormClosing / 画面の終了
+        /// <summary>
+        /// 画面の終了
+        /// </summary>
+        private void S010_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!m_CloseFLG)
+            {
+                if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    //排他情報の削除
+                    if (!string.IsNullOrWhiteSpace(D_請求締年月日.Text))
+                    {
+                        F_DeleteHaita(D_請求締年月日.Text);
+                    }
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+        #endregion
+
         #region F_Close / 画面の終了
         /// <summary>
         /// 画面の終了
@@ -672,6 +839,12 @@ namespace customerApp
         {
             if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                //排他情報の削除
+                if (!string.IsNullOrWhiteSpace(D_請求締年月日.Text))
+                {
+                    F_DeleteHaita(D_請求締年月日.Text);
+                }
+                m_CloseFLG = true;
                 this.Close();
             }
         }
@@ -696,11 +869,15 @@ namespace customerApp
         /// <param name="i_Kbn">
         /// 0:クリア処理時 
         /// 1:処理区分変更時 
-        /// 2:得意先CD入力時
         /// </param>
         /// </summary>
         private void F_InitializeInput(int i_Kbn)
         {
+            //排他情報の削除
+            if (!m_FormLoadFLG && i_Kbn != 2)
+            {
+                F_DeleteHaita(D_請求締年月日.Text);
+            }
 
             if (i_Kbn == 0)
             {
@@ -716,6 +893,7 @@ namespace customerApp
 
             DG1.Rows.Clear();
             B_Key12.Text = "F12:" + "表示";
+            B_Key12.Enabled = true;
 
             DateTime today = DateTime.Today;
             D_請求締年月日.Enabled = true;
@@ -734,62 +912,6 @@ namespace customerApp
         /// </summary>
         private bool F_Check()
         {
-            ////必須項目のチェック
-            //if (string.IsNullOrWhiteSpace(G_得意先CD.Text))
-            //{
-            //    MessageBox.Show("入力必須です", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            //    G_得意先CD.Focus();
-            //    return false;
-            //}
-            //if (string.IsNullOrWhiteSpace(G_得意先名.Text))
-            //{
-            //    MessageBox.Show("入力必須です", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            //    G_得意先名.Focus();
-            //    return false;
-            //}
-
-            ////得意先CDの重複チェック
-            //if (C_処理区分.SelectedIndex == 0) // 0:登録
-            //{
-            //    using (SqlConnection conn = new SqlConnection(Common.DB))
-            //    {
-            //        conn.Open();
-
-            //        string sql = @"
-            //         SELECT COUNT(*)
-            //         FROM Ｍ得意先
-            //         WHERE 得意先CD = @TokuisakiCD";
-
-            //        //デバッグ用
-            //        string w_DebugSQL =
-            //        $"SELECT COUNT(*) FROM Ｍ得意先 WHERE 得意先CD = '{G_得意先CD.Text}'";
-
-            //        using (SqlCommand cmd = new SqlCommand(sql, conn))
-            //        {
-            //            cmd.Parameters.AddWithValue(
-            //                "@TokuisakiCD",
-            //                G_得意先CD.Text);
-
-            //            int count = (int)cmd.ExecuteScalar();
-
-            //            if (count > 0)
-            //            {
-            //                MessageBox.Show(
-            //                    "登録済みです",
-            //                    "警告",
-            //                    MessageBoxButtons.OK,
-            //                    MessageBoxIcon.Warning);
-
-            //                F_Disp();
-            //                F_AllLock(0);
-
-            //                G_得意先CD.Focus();
-            //                return false;
-            //            }
-            //        }
-            //    }
-            //}
-
             return true;
         }
         #endregion
