@@ -33,6 +33,13 @@ namespace customerApp
         private bool m_SelectAll = false;
         #endregion
 
+        #region 画面終了FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_CloseFLG = false;
+        #endregion
+
         #endregion
 
         #region プライベート定数
@@ -312,6 +319,26 @@ namespace customerApp
         }
         #endregion
 
+        #region SM010_FormClosing / 画面の終了
+        /// <summary>
+        /// 画面の終了
+        /// </summary>
+        private void SM010_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!m_CloseFLG)
+            {
+                if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    //何もせず終了
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+        #endregion
+
         #region F_Close / 画面の終了
         /// <summary>
         /// 画面の終了
@@ -320,6 +347,7 @@ namespace customerApp
         {
             if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                m_CloseFLG = true;
                 this.Close();
             }
         }

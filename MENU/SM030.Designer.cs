@@ -42,15 +42,15 @@
             L_商品名 = new Label();
             GB_登録内容 = new GroupBox();
             DG1 = new DataGridView();
-            groupBox1 = new GroupBox();
-            B_Key03 = new Button();
-            B_Key01 = new Button();
             商品CD = new DataGridViewTextBoxColumn();
             商品名 = new DataGridViewTextBoxColumn();
             単位名 = new DataGridViewTextBoxColumn();
             消費税率 = new DataGridViewTextBoxColumn();
             単価 = new DataGridViewTextBoxColumn();
             備考 = new DataGridViewTextBoxColumn();
+            groupBox1 = new GroupBox();
+            B_Key03 = new Button();
+            B_Key01 = new Button();
             GB_処理区分.SuspendLayout();
             GB_登録内容.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)DG1).BeginInit();
@@ -149,42 +149,6 @@
             DG1.TabIndex = 0;
             DG1.CellContentDoubleClick += DG1_CellDoubleClick;
             // 
-            // groupBox1
-            // 
-            groupBox1.Controls.Add(B_Key03);
-            groupBox1.Controls.Add(B_Key01);
-            groupBox1.Controls.Add(B_Key12);
-            groupBox1.Location = new Point(5, 482);
-            groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(874, 55);
-            groupBox1.TabIndex = 9;
-            groupBox1.TabStop = false;
-            // 
-            // B_Key03
-            // 
-            B_Key03.BackColor = Color.White;
-            B_Key03.Location = new Point(111, 13);
-            B_Key03.Name = "B_Key03";
-            B_Key03.Size = new Size(105, 36);
-            B_Key03.TabIndex = 4;
-            B_Key03.TabStop = false;
-            B_Key03.Text = "F3:ｸﾘｱ";
-            B_Key03.UseVisualStyleBackColor = false;
-            B_Key03.Click += B_Key03_Click;
-            // 
-            // B_Key01
-            // 
-            B_Key01.BackColor = Color.White;
-            B_Key01.CausesValidation = false;
-            B_Key01.Location = new Point(5, 13);
-            B_Key01.Name = "B_Key01";
-            B_Key01.Size = new Size(105, 36);
-            B_Key01.TabIndex = 3;
-            B_Key01.TabStop = false;
-            B_Key01.Text = "F1:終了";
-            B_Key01.UseVisualStyleBackColor = false;
-            B_Key01.Click += B_Key01_Click;
-            // 
             // 商品CD
             // 
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleRight;
@@ -234,6 +198,42 @@
             備考.Name = "備考";
             備考.ReadOnly = true;
             // 
+            // groupBox1
+            // 
+            groupBox1.Controls.Add(B_Key03);
+            groupBox1.Controls.Add(B_Key01);
+            groupBox1.Controls.Add(B_Key12);
+            groupBox1.Location = new Point(5, 482);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(874, 55);
+            groupBox1.TabIndex = 9;
+            groupBox1.TabStop = false;
+            // 
+            // B_Key03
+            // 
+            B_Key03.BackColor = Color.White;
+            B_Key03.Location = new Point(111, 13);
+            B_Key03.Name = "B_Key03";
+            B_Key03.Size = new Size(105, 36);
+            B_Key03.TabIndex = 4;
+            B_Key03.TabStop = false;
+            B_Key03.Text = "F3:ｸﾘｱ";
+            B_Key03.UseVisualStyleBackColor = false;
+            B_Key03.Click += B_Key03_Click;
+            // 
+            // B_Key01
+            // 
+            B_Key01.BackColor = Color.White;
+            B_Key01.CausesValidation = false;
+            B_Key01.Location = new Point(5, 13);
+            B_Key01.Name = "B_Key01";
+            B_Key01.Size = new Size(105, 36);
+            B_Key01.TabIndex = 3;
+            B_Key01.TabStop = false;
+            B_Key01.Text = "F1:終了";
+            B_Key01.UseVisualStyleBackColor = false;
+            B_Key01.Click += B_Key01_Click;
+            // 
             // SM030
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -247,6 +247,7 @@
             MinimumSize = new Size(900, 580);
             Name = "SM030";
             Text = "SM030【商品検索】";
+            FormClosing += SM030_Closing;
             Load += SM030_Load;
             KeyDown += SM030_KeyDown;
             GB_処理区分.ResumeLayout(false);

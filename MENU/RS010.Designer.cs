@@ -318,6 +318,7 @@
             MinimumSize = new Size(900, 580);
             Name = "RS010";
             Text = "RS010【請求書】";
+            FormClosing += RS010_Closing;
             Load += RS010_Load;
             KeyDown += RS010_KeyDown;
             GB_処理区分.ResumeLayout(false);

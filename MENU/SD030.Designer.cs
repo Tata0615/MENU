@@ -650,6 +650,7 @@
             MinimumSize = new Size(900, 580);
             Name = "SD030";
             Text = "SD030【売上NO検索】";
+            FormClosing += SD030_Closing;
             Load += SD030_Load;
             KeyDown += SD030_KeyDown;
             GB_処理区分.ResumeLayout(false);

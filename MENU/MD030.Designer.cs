@@ -650,6 +650,7 @@
             MinimumSize = new Size(900, 580);
             Name = "MD030";
             Text = "MD030【売上明細照会】";
+            FormClosing += MD030_Closing;
             Load += MD030_Load;
             KeyDown += MD030_KeyDown;
             GB_処理区分.ResumeLayout(false);

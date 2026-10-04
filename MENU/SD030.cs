@@ -8,7 +8,6 @@ namespace customerApp
 {
     public partial class SD030 : Form
     {
-
         #region パブリック変数
 
         public string w_売上NO { get; set; } = "";
@@ -32,6 +31,13 @@ namespace customerApp
         private string m_TokmeiOld = "";
         private int m_SyoriKbnOld = 9;  //登録～照会以外の区分を設定
         private bool m_SelectAll = false;
+        #endregion
+
+        #region 画面終了FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_CloseFLG = false;
         #endregion
 
         #endregion
@@ -548,6 +554,26 @@ namespace customerApp
         }
         #endregion
 
+        #region SD030_FormClosing / 画面の終了
+        /// <summary>
+        /// 画面の終了
+        /// </summary>
+        private void SD030_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!m_CloseFLG)
+            {
+                if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    //何もせず終了
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+        #endregion
+
         #region F_Close / 画面の終了
         /// <summary>
         /// 画面の終了
@@ -556,6 +582,7 @@ namespace customerApp
         {
             if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                m_CloseFLG = true;
                 this.Close();
             }
         }

@@ -230,6 +230,7 @@
             MinimumSize = new Size(500, 380);
             Name = "MENU";
             Text = "MENU";
+            FormClosing += RS010_Closing;
             Load += MENU_Load;
             KeyDown += MENU_KeyDown;
             GB_登録内容.ResumeLayout(false);

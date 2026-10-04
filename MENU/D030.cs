@@ -128,15 +128,12 @@ namespace customerApp
                 C_処理区分.SelectedIndex = 1; // 1:変更
                 C_処理区分.Enabled = false;
 
+                //売上NOを画面に表示する
                 G_売上NO.Text = m_UriageNO;
                 F_DispUri();
                 G_売上NO.BackColor = Color.FromArgb(255, 255, 192);
                 G_売上NO.ReadOnly = true;
-                //締処理済みの場合は、全てロックする
-                if (!F_SeiSNCheck())
-                {
-                    F_AllLock(0);
-                }
+
                 //明細の選択状態を解除する(青い部分が残ったままになるので)
                 DG1.ClearSelection();
                 D_売上日.Focus();
@@ -218,24 +215,27 @@ namespace customerApp
         /// </summary>
         private void D_請求計上日_ValueChanged(object sender, EventArgs e)
         {
+            bool w_Ok = true;
+
             // 売上日変更による自動変更なら何もしない
             if (m_IsUpdatingSeiDay)
             {
                 return;
             }
-            if (D_請求計上日.Value < D_売上日.Value)
+
+            if (!F_SeiSNCheck())
+            {
+                w_Ok = false;
+            }
+
+            if (w_Ok && D_請求計上日.Value < D_売上日.Value)
             {
                 MessageBox.Show(
                     "請求計上日は売上日以降の日付を入力してください",
                     "警告",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
-                D_請求計上日.Value = D_売上日.Value;
                 D_請求計上日.Focus();
-            }
-            else
-            {
-                F_SeiSNCheck();
             }
         }
         #endregion
@@ -988,6 +988,15 @@ namespace customerApp
                             Haitacmd.ExecuteNonQuery();
                         }
                     }
+                }
+            }
+
+            //締処理済みの場合は全てロック
+            if (w_Ok)
+            {
+                if (!F_SeiSNCheck())
+                {
+                    w_Ok = false;
                 }
             }
 
@@ -1807,7 +1816,17 @@ namespace customerApp
                 if (!w_ok)
                 {
                     return false;
-                }                
+                }
+                else if (D_請求計上日.Value < D_売上日.Value)
+                {
+                    MessageBox.Show(
+                        "請求計上日は売上日以降の日付を入力してください",
+                        "警告",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    D_請求計上日.Focus();
+                    return false;
+                }
             }
             if (string.IsNullOrWhiteSpace(G_担当者CD.Text))
             {

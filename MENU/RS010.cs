@@ -20,16 +20,12 @@ namespace customerApp
         private string m_OperatorCD = "";
         #endregion
 
-        //#region DB接続情報
-        ///// <summary>
-        ///// DB接続情報
-        ///// </summary>
-        //string Common.DB =
-        //        @"Server=DESKTOP-UC611OS;
-        //          Database=TestDB;
-        //          Trusted_Connection=True;
-        //          Encrypt=False";
-        //#endregion
+        #region 画面終了FLG
+        /// <summary>
+        /// 画面終了FLG
+        /// </summary>
+        private bool m_CloseFLG = false;
+        #endregion
 
         #region 変更前データ保存用
         /// <summary>
@@ -328,149 +324,7 @@ namespace customerApp
         /// </summary>
         private bool F_Update()
         {
-
             bool w_ok = false;
-
-            //請求先情報の更新
-            DateTime w_SeiSN = D_請求締年月日.Value.Date;
-            Decimal w_UriKingakuZeinuki = 0;
-            Decimal w_UriKingakuSyohizei = 0;
-            Decimal w_UriKingaku = 0;
-            DateTime w_TorokuDay = DateTime.Now;
-            DateTime w_KosinDay = DateTime.Now;
-
-            //得意先情報の更新
-            //DateTime? w_ZSeiSN = null;
-
-            using (SqlConnection conn = new SqlConnection(Common.DB))
-            {
-                conn.Open();
-
-                using (SqlTransaction tran = conn.BeginTransaction())
-                {
-                    try
-                    {
-
-                        //明細の数だけ回す
-                        for (int w_Row = 0; w_Row < DG1.Rows.Count; w_Row++)
-                        {
-                            string w_MTOKCD = DG1.Rows[w_Row].Cells["請求先CD"].Value?.ToString() ?? "";
-                            DateTime? w_ZSeiSN_SSEI = DG1.Rows[w_Row].Cells["前回請求締年月日"].Value == DBNull.Value ? null : Convert.ToDateTime(DG1.Rows[w_Row].Cells["前回請求締年月日"].Value);
-
-                            //得意先情報の更新
-                            string MTOKsql = @"
-                                    UPDATE Ｍ得意先
-                                    SET
-                                    前回請求締年月日 = @w_ZSeiSN,
-                                    更新PROID = @w_KosinPROID,
-                                    更新日時 = @w_KosinDay,
-                                    オペレータCD = @w_OperatorCD
-                                    WHERE 得意先CD = @MTOKCD";
-
-                            using (SqlCommand cmd = new SqlCommand(MTOKsql, conn, tran))
-                            {
-                                cmd.Parameters.AddWithValue("@MTOKCD", w_MTOKCD);
-
-                                cmd.Parameters.AddWithValue("@w_ZSeiSN", F_DBValue(w_SeiSN));
-                                cmd.Parameters.AddWithValue("@w_KosinPROID", m_KosinPROID);
-                                cmd.Parameters.AddWithValue("@w_KosinDay", w_KosinDay);
-                                cmd.Parameters.AddWithValue("@w_OperatorCD", m_OperatorCD);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            //売上情報の更新
-                            string DUHDsql = @"
-                                    UPDATE Ｄ売上ヘッダー
-                                    SET
-                                    請求締年月日 = @w_SeiSN,
-                                    更新PROID = @w_KosinPROID,
-                                    更新日時 = @w_KosinDay,
-                                    オペレータCD = @w_OperatorCD
-                                    WHERE 0 = 0
-                                      AND 得意先CD = @MTOKCD
-                                      AND 請求締年月日 IS NULL
-                                      AND 売上日 <= @w_SeiSN";
-
-                            using (SqlCommand cmd = new SqlCommand(DUHDsql, conn, tran))
-                            {
-                                cmd.Parameters.AddWithValue("@MTOKCD", w_MTOKCD);
-
-                                cmd.Parameters.AddWithValue("@w_SeiSN", w_SeiSN);
-                                cmd.Parameters.AddWithValue("@w_KosinPROID", m_KosinPROID);
-                                cmd.Parameters.AddWithValue("@w_KosinDay", w_KosinDay);
-                                cmd.Parameters.AddWithValue("@w_OperatorCD", m_OperatorCD);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            // Ｓ請求残高更新処理
-                            string SSEIsql;
-
-                            SSEIsql = @"
-                                INSERT INTO Ｓ請求残高
-                                (
-                                    請求先CD,
-                                    請求締年月日,
-                                    合計売上金額税抜,
-                                    合計売上消費税,
-                                    合計売上金額,
-                                    前回請求締年月日,
-                                    登録PROID,
-                                    更新PROID,
-                                    登録日時,
-                                    更新日時,
-                                    オペレータCD
-                                )
-                                VALUES
-                                (
-                                    @w_SeiCD,
-                                    @w_SeiSN,
-                                    @w_UriKingakuZeinuki,
-                                    @w_UriKingakuSyohizei,
-                                    @w_UriKingaku,
-                                    @w_ZSeiSN_SSEI,
-                                    @w_TorokuPROID,
-                                    @w_KosinPROID,
-                                    @w_TorokuDay,
-                                    @w_KosinDay,
-                                    @w_OperatorCD
-                                )";
-
-                            w_UriKingakuZeinuki = Convert.ToDecimal(DG1.Rows[w_Row].Cells["税抜売上金額"].Value);
-                            w_UriKingakuSyohizei = Convert.ToDecimal(DG1.Rows[w_Row].Cells["消費税額"].Value);
-                            w_UriKingaku = Convert.ToDecimal(DG1.Rows[w_Row].Cells["税込売上金額"].Value);
-
-                            using (SqlCommand cmd = new SqlCommand(SSEIsql, conn, tran))
-                            {
-                                cmd.Parameters.AddWithValue("@w_SeiCD", w_MTOKCD);
-                                cmd.Parameters.AddWithValue("@w_SeiSN", w_SeiSN);
-                                cmd.Parameters.AddWithValue("@w_UriKingakuZeinuki", w_UriKingakuZeinuki);
-                                cmd.Parameters.AddWithValue("@w_UriKingakuSyohizei", w_UriKingakuSyohizei);
-                                cmd.Parameters.AddWithValue("@w_UriKingaku", w_UriKingaku);
-                                cmd.Parameters.AddWithValue("@w_ZSeiSN_SSEI", F_DBValue(w_ZSeiSN_SSEI));
-                                cmd.Parameters.AddWithValue("@w_TorokuPROID", m_TorokuPROID);
-                                cmd.Parameters.AddWithValue("@w_KosinPROID", m_KosinPROID);
-                                cmd.Parameters.AddWithValue("@w_TorokuDay", w_TorokuDay);
-                                cmd.Parameters.AddWithValue("@w_KosinDay", w_KosinDay);
-                                cmd.Parameters.AddWithValue("@w_OperatorCD", m_OperatorCD);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                        }
-
-                        // 正常終了なら確定
-                        tran.Commit();
-                        DG1.EndEdit();
-                        w_ok = true;
-                    }
-                    catch
-                    {
-                        // エラーなら取り消し
-                        tran.Rollback();
-                        DG1.EndEdit();
-                        w_ok = false;
-                    }
-                }
-            }
             return w_ok;
         }
 
@@ -607,6 +461,26 @@ namespace customerApp
         }
         #endregion
 
+        #region RS010_FormClosing / 画面の終了
+        /// <summary>
+        /// 画面の終了
+        /// </summary>
+        private void RS010_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!m_CloseFLG)
+            {
+                if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    //何もせず終了
+                }
+                else
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+        #endregion
+
         #region F_Close / 画面の終了
         /// <summary>
         /// 画面の終了
@@ -615,6 +489,7 @@ namespace customerApp
         {
             if (MessageBox.Show("終了しますか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
+                m_CloseFLG = true;
                 this.Close();
             }
         }
