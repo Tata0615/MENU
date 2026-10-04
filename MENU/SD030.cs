@@ -388,6 +388,7 @@ namespace customerApp
             w_îÑè„NO = DG1.Rows[e.RowIndex].Cells["îÑè„NO"].Value?.ToString() ?? "";
 
             DialogResult = DialogResult.OK;
+            m_CloseFLG = true;
             Close();
         }
         #endregion

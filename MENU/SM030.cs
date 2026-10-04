@@ -223,6 +223,7 @@ namespace customerApp
             m_è§ïiCD = DG1.Rows[e.RowIndex].Cells["è§ïiCD"].Value?.ToString() ?? "";
 
             DialogResult = DialogResult.OK;
+            m_CloseFLG = true;
             Close();
         }
         #endregion

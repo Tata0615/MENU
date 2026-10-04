@@ -220,6 +220,7 @@ namespace customerApp
             m_’S“–ŽÒCD = DG1.Rows[e.RowIndex].Cells["’S“–ŽÒCD"].Value?.ToString() ?? "";
 
             DialogResult = DialogResult.OK;
+            m_CloseFLG = true;
             Close();
         }
         #endregion
