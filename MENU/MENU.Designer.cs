@@ -229,7 +229,7 @@
             MaximumSize = new Size(900, 580);
             MinimumSize = new Size(500, 380);
             Name = "MENU";
-            Text = "MENU";
+            Text = "MENU【販売管理システム】";
             FormClosing += RS010_Closing;
             Load += MENU_Load;
             KeyDown += MENU_KeyDown;

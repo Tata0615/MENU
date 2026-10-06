@@ -847,6 +847,8 @@ namespace customerApp
             G_’S“–Ò–¼.Text = "";
             G_”õl.Text = "";
 
+            O_‘O‰ñ¿‹’÷”NŒ“ú.Text = "";
+
 
         }
         #endregion
